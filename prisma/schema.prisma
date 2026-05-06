@@ -1,0 +1,666 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model activity_logs {
+  log_id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id     String?   @db.Uuid
+  action      String    @db.VarChar(100)
+  entity_type String?   @db.VarChar(100)
+  entity_id   String?   @db.Uuid
+  description String?
+  ip_address  String?   @db.VarChar(45)
+  user_agent  String?
+  metadata    Json?     @db.Json
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ai_chat_logs {
+  log_id           String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  session_id       String?           @db.Uuid
+  message_id       String?           @db.Uuid
+  prompt           String?
+  response         String?
+  model            String?           @db.VarChar(100)
+  tokens_used      Int?
+  response_time_ms Int?
+  confidence_score Decimal?          @db.Decimal(5, 4)
+  intent           String?           @db.VarChar(100)
+  entities         Json?             @db.Json
+  sentiment        String?           @db.VarChar(50)
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  messages         messages?         @relation(fields: [message_id], references: [message_id], onDelete: Cascade, onUpdate: NoAction)
+  ai_chat_sessions ai_chat_sessions? @relation(fields: [session_id], references: [session_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id], map: "idx_ai_chat_logs_session")
+}
+
+model ai_chat_sessions {
+  session_id      String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversation_id String?        @db.Uuid
+  user_id         String?        @db.Uuid
+  context         Json?          @db.Json
+  total_messages  Int?           @default(0)
+  total_tokens    Int?           @default(0)
+  started_at      DateTime?      @default(now()) @db.Timestamp(6)
+  ended_at        DateTime?      @db.Timestamp(6)
+  created_at      DateTime?      @default(now()) @db.Timestamp(6)
+  ai_chat_logs    ai_chat_logs[]
+  conversations   conversations? @relation(fields: [conversation_id], references: [conversation_id], onDelete: Cascade, onUpdate: NoAction)
+  users           users?         @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ai_training_data {
+  training_id       String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  category          String    @db.VarChar(100)
+  question          String
+  answer            String
+  keywords          String[]
+  context           Json?     @db.Json
+  is_active         Boolean?  @default(true)
+  usage_count       Int?      @default(0)
+  positive_feedback Int?      @default(0)
+  negative_feedback Int?      @default(0)
+  created_by        String?   @db.Uuid
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  updated_at        DateTime? @default(now()) @db.Timestamp(6)
+  users             users?    @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model banners {
+  banner_id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title            String    @db.VarChar(255)
+  image_url        String
+  mobile_image_url String?
+  link_url         String?
+  position         String?   @db.VarChar(50)
+  display_order    Int?      @default(0)
+  start_date       DateTime? @db.Timestamp(6)
+  end_date         DateTime? @db.Timestamp(6)
+  is_active        Boolean?  @default(true)
+  click_count      Int?      @default(0)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model blog_post_tags {
+  post_id    String     @db.Uuid
+  tag_id     String     @db.Uuid
+  blog_posts blog_posts @relation(fields: [post_id], references: [post_id], onDelete: Cascade, onUpdate: NoAction)
+  blog_tags  blog_tags  @relation(fields: [tag_id], references: [tag_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([post_id, tag_id])
+}
+
+model blog_posts {
+  post_id          String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title            String           @db.VarChar(255)
+  slug             String           @unique @db.VarChar(255)
+  content          String?
+  excerpt          String?
+  featured_image   String?
+  status           String?          @default("draft") @db.VarChar(20)
+  category_id      String?          @db.Uuid
+  author_id        String?          @db.Uuid
+  view_count       Int?             @default(0)
+  meta_title       String?          @db.VarChar(255)
+  meta_description String?
+  meta_keywords    String?
+  published_at     DateTime?        @db.Timestamp(6)
+  created_at       DateTime?        @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?        @default(now()) @db.Timestamp(6)
+  blog_post_tags   blog_post_tags[]
+  users            users?           @relation(fields: [author_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  categories       categories?      @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([category_id], map: "idx_blog_posts_category")
+  @@index([slug], map: "idx_blog_posts_slug")
+  @@index([status], map: "idx_blog_posts_status")
+}
+
+model blog_tags {
+  tag_id         String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String           @db.VarChar(100)
+  slug           String           @unique @db.VarChar(100)
+  created_at     DateTime?        @default(now()) @db.Timestamp(6)
+  blog_post_tags blog_post_tags[]
+}
+
+model brands {
+  brand_id    String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String     @db.VarChar(255)
+  slug        String     @unique @db.VarChar(255)
+  logo_url    String?
+  description String?
+  website     String?    @db.VarChar(255)
+  is_active   Boolean?   @default(true)
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamp(6)
+  products    products[]
+}
+
+model cart_items {
+  cart_item_id     String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cart_id          String?           @db.Uuid
+  product_id       String?           @db.Uuid
+  variant_id       String?           @db.Uuid
+  quantity         Int               @default(1)
+  price            Decimal           @db.Decimal(15, 2)
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?         @default(now()) @db.Timestamp(6)
+  carts            carts?            @relation(fields: [cart_id], references: [cart_id], onDelete: Cascade, onUpdate: NoAction)
+  products         products?         @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+  product_variants product_variants? @relation(fields: [variant_id], references: [variant_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model carts {
+  cart_id    String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id    String?      @db.Uuid
+  session_id String?      @db.VarChar(255)
+  created_at DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at DateTime?    @default(now()) @db.Timestamp(6)
+  cart_items cart_items[]
+  users      users?       @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model categories {
+  category_id      String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  parent_id        String?      @db.Uuid
+  name             String       @db.VarChar(255)
+  slug             String       @unique @db.VarChar(255)
+  description      String?
+  image_url        String?
+  icon             String?      @db.VarChar(100)
+  display_order    Int?         @default(0)
+  is_active        Boolean?     @default(true)
+  meta_title       String?      @db.VarChar(255)
+  meta_description String?
+  meta_keywords    String?
+  created_at       DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?    @default(now()) @db.Timestamp(6)
+  blog_posts       blog_posts[]
+  categories       categories?  @relation("categoriesTocategories", fields: [parent_id], references: [category_id], onDelete: Cascade, onUpdate: NoAction)
+  other_categories categories[] @relation("categoriesTocategories")
+  products         products[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_feedback {
+  feedback_id     String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversation_id String?        @db.Uuid
+  message_id      String?        @db.Uuid
+  rating          Int?
+  feedback_type   String?        @db.VarChar(50)
+  comment         String?
+  created_at      DateTime?      @default(now()) @db.Timestamp(6)
+  conversations   conversations? @relation(fields: [conversation_id], references: [conversation_id], onDelete: Cascade, onUpdate: NoAction)
+  messages        messages?      @relation(fields: [message_id], references: [message_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model chat_quick_replies {
+  reply_id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  category      String?   @db.VarChar(100)
+  title         String    @db.VarChar(255)
+  message       String
+  shortcut      String?   @db.VarChar(50)
+  display_order Int?      @default(0)
+  is_active     Boolean?  @default(true)
+  created_by    String?   @db.Uuid
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+  users         users?    @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model conversations {
+  conversation_id                        String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id                                String?            @db.Uuid
+  session_id                             String?            @db.VarChar(255)
+  type                                   String?            @default("customer_support") @db.VarChar(50)
+  status                                 String?            @default("active") @db.VarChar(50)
+  assigned_to                            String?            @db.Uuid
+  priority                               String?            @default("normal") @db.VarChar(20)
+  subject                                String?            @db.VarChar(255)
+  started_at                             DateTime?          @default(now()) @db.Timestamp(6)
+  last_message_at                        DateTime?          @default(now()) @db.Timestamp(6)
+  closed_at                              DateTime?          @db.Timestamp(6)
+  customer_name                          String?            @db.VarChar(255)
+  customer_email                         String?            @db.VarChar(255)
+  customer_phone                         String?            @db.VarChar(20)
+  tags                                   String[]
+  metadata                               Json?              @db.Json
+  created_at                             DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at                             DateTime?          @default(now()) @db.Timestamp(6)
+  ai_chat_sessions                       ai_chat_sessions[]
+  chat_feedback                          chat_feedback[]
+  users_conversations_assigned_toTousers users?             @relation("conversations_assigned_toTousers", fields: [assigned_to], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  users_conversations_user_idTousers     users?             @relation("conversations_user_idTousers", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+  messages                               messages[]
+
+  @@index([status], map: "idx_conversations_status")
+  @@index([user_id], map: "idx_conversations_user")
+}
+
+model coupon_usage {
+  usage_id  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  coupon_id String?   @db.Uuid
+  user_id   String?   @db.Uuid
+  order_id  String?   @db.Uuid
+  used_at   DateTime? @default(now()) @db.Timestamp(6)
+  coupons   coupons?  @relation(fields: [coupon_id], references: [coupon_id], onDelete: NoAction, onUpdate: NoAction)
+  orders    orders?   @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
+  users     users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model coupons {
+  coupon_id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code                 String         @unique @db.VarChar(50)
+  description          String?
+  discount_type        String         @db.VarChar(20)
+  discount_value       Decimal        @db.Decimal(15, 2)
+  min_purchase_amount  Decimal?       @db.Decimal(15, 2)
+  max_discount_amount  Decimal?       @db.Decimal(15, 2)
+  usage_limit          Int?
+  usage_limit_per_user Int?
+  usage_count          Int?           @default(0)
+  valid_from           DateTime       @db.Timestamp(6)
+  valid_to             DateTime       @db.Timestamp(6)
+  is_active            Boolean?       @default(true)
+  created_at           DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?      @default(now()) @db.Timestamp(6)
+  coupon_usage         coupon_usage[]
+}
+
+model inventory_transactions {
+  transaction_id   String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_id       String?           @db.Uuid
+  variant_id       String?           @db.Uuid
+  transaction_type String            @db.VarChar(50)
+  quantity         Int
+  reference_id     String?           @db.Uuid
+  notes            String?
+  created_by       String?           @db.Uuid
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  users            users?            @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  products         products?         @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+  product_variants product_variants? @relation(fields: [variant_id], references: [variant_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model media_library {
+  media_id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  filename          String    @db.VarChar(255)
+  original_filename String    @db.VarChar(255)
+  file_path         String
+  file_url          String
+  file_type         String?   @db.VarChar(50)
+  mime_type         String?   @db.VarChar(100)
+  file_size         BigInt?
+  width             Int?
+  height            Int?
+  alt_text          String?   @db.VarChar(255)
+  title             String?   @db.VarChar(255)
+  description       String?
+  uploaded_by       String?   @db.Uuid
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  users             users?    @relation(fields: [uploaded_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model menu_items {
+  menu_item_id     String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  menu_id          String?      @db.Uuid
+  parent_id        String?      @db.Uuid
+  title            String       @db.VarChar(255)
+  url              String?      @db.VarChar(255)
+  target           String?      @default("_self") @db.VarChar(20)
+  icon             String?      @db.VarChar(100)
+  display_order    Int?         @default(0)
+  is_active        Boolean?     @default(true)
+  created_at       DateTime?    @default(now()) @db.Timestamp(6)
+  menus            menus?       @relation(fields: [menu_id], references: [menu_id], onDelete: Cascade, onUpdate: NoAction)
+  menu_items       menu_items?  @relation("menu_itemsTomenu_items", fields: [parent_id], references: [menu_item_id], onDelete: Cascade, onUpdate: NoAction)
+  other_menu_items menu_items[] @relation("menu_itemsTomenu_items")
+}
+
+model menus {
+  menu_id    String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name       String       @db.VarChar(100)
+  location   String?      @db.VarChar(50)
+  created_at DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at DateTime?    @default(now()) @db.Timestamp(6)
+  menu_items menu_items[]
+}
+
+model messages {
+  message_id      String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversation_id String?         @db.Uuid
+  sender_id       String?         @db.Uuid
+  sender_type     String          @db.VarChar(50)
+  message_type    String?         @default("text") @db.VarChar(50)
+  content         String?
+  attachments     Json?           @db.Json
+  metadata        Json?           @db.Json
+  is_read         Boolean?        @default(false)
+  read_at         DateTime?       @db.Timestamp(6)
+  created_at      DateTime?       @default(now()) @db.Timestamp(6)
+  ai_chat_logs    ai_chat_logs[]
+  chat_feedback   chat_feedback[]
+  conversations   conversations?  @relation(fields: [conversation_id], references: [conversation_id], onDelete: Cascade, onUpdate: NoAction)
+  users           users?          @relation(fields: [sender_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([conversation_id], map: "idx_messages_conversation")
+  @@index([created_at], map: "idx_messages_created")
+}
+
+model notifications {
+  notification_id String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id         String?   @db.Uuid
+  type            String    @db.VarChar(50)
+  title           String    @db.VarChar(255)
+  message         String
+  action_url      String?
+  icon            String?   @db.VarChar(100)
+  is_read         Boolean?  @default(false)
+  read_at         DateTime? @db.Timestamp(6)
+  data            Json?     @db.Json
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  users           users?    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_read], map: "idx_notifications_is_read")
+  @@index([user_id], map: "idx_notifications_user")
+}
+
+model order_items {
+  order_item_id    String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_id         String?           @db.Uuid
+  product_id       String?           @db.Uuid
+  variant_id       String?           @db.Uuid
+  product_name     String            @db.VarChar(255)
+  variant_name     String?           @db.VarChar(255)
+  sku              String?           @db.VarChar(100)
+  quantity         Int
+  unit_price       Decimal           @db.Decimal(15, 2)
+  total_price      Decimal           @db.Decimal(15, 2)
+  created_at       DateTime?         @default(now()) @db.Timestamp(6)
+  orders           orders?           @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+  products         products?         @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
+  product_variants product_variants? @relation(fields: [variant_id], references: [variant_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([order_id], map: "idx_order_items_order")
+  @@index([product_id], map: "idx_order_items_product")
+}
+
+model order_status_history {
+  history_id String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_id   String?   @db.Uuid
+  status     String    @db.VarChar(50)
+  notes      String?
+  created_by String?   @db.Uuid
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users?    @relation(fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  orders     orders?   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model orders {
+  order_id               String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_number           String                 @unique @db.VarChar(50)
+  user_id                String?                @db.Uuid
+  status                 String?                @default("pending") @db.VarChar(50)
+  payment_status         String?                @default("pending") @db.VarChar(50)
+  shipping_status        String?                @default("pending") @db.VarChar(50)
+  customer_email         String                 @db.VarChar(255)
+  customer_phone         String?                @db.VarChar(20)
+  customer_name          String                 @db.VarChar(255)
+  shipping_address_line1 String                 @db.VarChar(255)
+  shipping_address_line2 String?                @db.VarChar(255)
+  shipping_city          String                 @db.VarChar(100)
+  shipping_district      String?                @db.VarChar(100)
+  shipping_ward          String?                @db.VarChar(100)
+  shipping_postal_code   String?                @db.VarChar(20)
+  shipping_country       String?                @default("Vietnam") @db.VarChar(100)
+  billing_address_line1  String?                @db.VarChar(255)
+  billing_address_line2  String?                @db.VarChar(255)
+  billing_city           String?                @db.VarChar(100)
+  billing_district       String?                @db.VarChar(100)
+  billing_ward           String?                @db.VarChar(100)
+  billing_postal_code    String?                @db.VarChar(20)
+  billing_country        String?                @db.VarChar(100)
+  subtotal               Decimal                @db.Decimal(15, 2)
+  shipping_fee           Decimal?               @default(0) @db.Decimal(15, 2)
+  tax_amount             Decimal?               @default(0) @db.Decimal(15, 2)
+  discount_amount        Decimal?               @default(0) @db.Decimal(15, 2)
+  total_amount           Decimal                @db.Decimal(15, 2)
+  coupon_code            String?                @db.VarChar(50)
+  payment_method         String?                @db.VarChar(50)
+  shipping_method        String?                @db.VarChar(50)
+  notes                  String?
+  internal_notes         String?
+  tracking_number        String?                @db.VarChar(100)
+  shipped_at             DateTime?              @db.Timestamp(6)
+  delivered_at           DateTime?              @db.Timestamp(6)
+  cancelled_at           DateTime?              @db.Timestamp(6)
+  cancellation_reason    String?
+  created_at             DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?              @default(now()) @db.Timestamp(6)
+  coupon_usage           coupon_usage[]
+  order_items            order_items[]
+  order_status_history   order_status_history[]
+  users                  users?                 @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  payments               payments[]
+
+  @@index([created_at], map: "idx_orders_created")
+  @@index([order_number], map: "idx_orders_number")
+  @@index([status], map: "idx_orders_status")
+  @@index([user_id], map: "idx_orders_user")
+}
+
+model pages {
+  page_id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title            String    @db.VarChar(255)
+  slug             String    @unique @db.VarChar(255)
+  content          String?
+  excerpt          String?
+  template         String?   @default("default") @db.VarChar(50)
+  status           String?   @default("draft") @db.VarChar(20)
+  featured_image   String?
+  meta_title       String?   @db.VarChar(255)
+  meta_description String?
+  meta_keywords    String?
+  author_id        String?   @db.Uuid
+  published_at     DateTime? @db.Timestamp(6)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+  users            users?    @relation(fields: [author_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([slug], map: "idx_pages_slug")
+}
+
+model payments {
+  payment_id       String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_id         String?   @db.Uuid
+  payment_method   String    @db.VarChar(50)
+  amount           Decimal   @db.Decimal(15, 2)
+  status           String?   @default("pending") @db.VarChar(50)
+  transaction_id   String?   @db.VarChar(255)
+  gateway_response Json?     @db.Json
+  paid_at          DateTime? @db.Timestamp(6)
+  refunded_at      DateTime? @db.Timestamp(6)
+  refund_amount    Decimal?  @db.Decimal(15, 2)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+  orders           orders?   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model product_images {
+  image_id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_id    String?   @db.Uuid
+  image_url     String
+  alt_text      String?   @db.VarChar(255)
+  display_order Int?      @default(0)
+  is_primary    Boolean?  @default(false)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  products      products? @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model product_reviews {
+  review_id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_id           String?   @db.Uuid
+  user_id              String?   @db.Uuid
+  order_id             String?   @db.Uuid
+  rating               Int?
+  title                String?   @db.VarChar(255)
+  comment              String?
+  images               String[]
+  is_verified_purchase Boolean?  @default(false)
+  is_approved          Boolean?  @default(false)
+  helpful_count        Int?      @default(0)
+  created_at           DateTime? @default(now()) @db.Timestamp(6)
+  updated_at           DateTime? @default(now()) @db.Timestamp(6)
+  products             products? @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction)
+  users                users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model product_variants {
+  variant_id             String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_id             String?                  @db.Uuid
+  sku                    String?                  @unique @db.VarChar(100)
+  name                   String?                  @db.VarChar(255)
+  option1_name           String?                  @db.VarChar(100)
+  option1_value          String?                  @db.VarChar(100)
+  option2_name           String?                  @db.VarChar(100)
+  option2_value          String?                  @db.VarChar(100)
+  option3_name           String?                  @db.VarChar(100)
+  option3_value          String?                  @db.VarChar(100)
+  price                  Decimal?                 @db.Decimal(15, 2)
+  compare_price          Decimal?                 @db.Decimal(15, 2)
+  cost_price             Decimal?                 @db.Decimal(15, 2)
+  stock_quantity         Int?                     @default(0)
+  image_url              String?
+  is_active              Boolean?                 @default(true)
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  cart_items             cart_items[]
+  inventory_transactions inventory_transactions[]
+  order_items            order_items[]
+  products               products?                @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([product_id], map: "idx_product_variants_product")
+}
+
+model products {
+  product_id             String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  category_id            String?                  @db.Uuid
+  brand_id               String?                  @db.Uuid
+  name                   String                   @db.VarChar(255)
+  slug                   String                   @unique @db.VarChar(255)
+  sku                    String?                  @unique @db.VarChar(100)
+  short_description      String?
+  description            String?
+  price                  Decimal                  @db.Decimal(15, 2)
+  compare_price          Decimal?                 @db.Decimal(15, 2)
+  cost_price             Decimal?                 @db.Decimal(15, 2)
+  status                 String?                  @default("draft") @db.VarChar(20)
+  featured               Boolean?                 @default(false)
+  best_seller            Boolean?                 @default(false)
+  new_arrival            Boolean?                 @default(false)
+  weight                 Decimal?                 @db.Decimal(10, 2)
+  dimensions             String?                  @db.VarChar(100)
+  meta_title             String?                  @db.VarChar(255)
+  meta_description       String?
+  meta_keywords          String?
+  view_count             Int?                     @default(0)
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamp(6)
+  published_at           DateTime?                @db.Timestamp(6)
+  cart_items             cart_items[]
+  inventory_transactions inventory_transactions[]
+  order_items            order_items[]
+  product_images         product_images[]
+  product_reviews        product_reviews[]
+  product_variants       product_variants[]
+  brands                 brands?                  @relation(fields: [brand_id], references: [brand_id], onDelete: NoAction, onUpdate: NoAction)
+  categories             categories?              @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([brand_id], map: "idx_products_brand")
+  @@index([category_id], map: "idx_products_category")
+  @@index([featured], map: "idx_products_featured")
+  @@index([slug], map: "idx_products_slug")
+  @@index([status], map: "idx_products_status")
+}
+
+model settings {
+  setting_id  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  category    String    @db.VarChar(100)
+  key         String    @db.VarChar(100)
+  value       String?
+  data_type   String?   @default("string") @db.VarChar(50)
+  description String?
+  is_public   Boolean?  @default(false)
+  updated_by  String?   @db.Uuid
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       users?    @relation(fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([category, key])
+}
+
+model user_addresses {
+  address_id    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id       String?   @db.Uuid
+  address_type  String?   @default("shipping") @db.VarChar(20)
+  full_name     String    @db.VarChar(255)
+  phone         String    @db.VarChar(20)
+  address_line1 String    @db.VarChar(255)
+  address_line2 String?   @db.VarChar(255)
+  city          String    @db.VarChar(100)
+  district      String?   @db.VarChar(100)
+  ward          String?   @db.VarChar(100)
+  postal_code   String?   @db.VarChar(20)
+  country       String?   @default("Vietnam") @db.VarChar(100)
+  is_default    Boolean?  @default(false)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+  users         users?    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  user_id                                        String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                                          String                   @unique @db.VarChar(255)
+  password_hash                                  String                   @db.VarChar(255)
+  full_name                                      String                   @db.VarChar(255)
+  phone                                          String?                  @db.VarChar(20)
+  avatar_url                                     String?
+  role                                           String                   @default("customer") @db.VarChar(50)
+  status                                         String?                  @default("active") @db.VarChar(20)
+  email_verified                                 Boolean?                 @default(false)
+  last_login                                     DateTime?                @db.Timestamp(6)
+  created_at                                     DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at                                     DateTime?                @default(now()) @db.Timestamp(6)
+  activity_logs                                  activity_logs[]
+  ai_chat_sessions                               ai_chat_sessions[]
+  ai_training_data                               ai_training_data[]
+  blog_posts                                     blog_posts[]
+  carts                                          carts[]
+  chat_quick_replies                             chat_quick_replies[]
+  conversations_conversations_assigned_toTousers conversations[]          @relation("conversations_assigned_toTousers")
+  conversations_conversations_user_idTousers     conversations[]          @relation("conversations_user_idTousers")
+  coupon_usage                                   coupon_usage[]
+  inventory_transactions                         inventory_transactions[]
+  media_library                                  media_library[]
+  messages                                       messages[]
+  notifications                                  notifications[]
+  order_status_history                           order_status_history[]
+  orders                                         orders[]
+  pages                                          pages[]
+  product_reviews                                product_reviews[]
+  settings                                       settings[]
+  user_addresses                                 user_addresses[]
+
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+  @@index([status], map: "idx_users_status")
+}
