@@ -3,6 +3,8 @@ import {
   buyNow as buyNowService,
   getCheckoutOptions,
   getOrders as getOrdersService,
+  getOrderById as getOrderByIdService,
+  cancelOrder as cancelOrderService,
   getPaymentMethods,
   getShippingMethods,
   placeOrder as placeOrderService,
@@ -74,4 +76,38 @@ export const shippingMethods = (_req: AuthRequest, res: Response) => {
 
 export const paymentMethods = (_req: AuthRequest, res: Response) => {
   res.json({ payment_methods: getPaymentMethods() });
+};
+
+export const getOrderById = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { orderId } = req.params;
+    const result = await getOrderByIdService(userId, orderId as string);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Get order by ID error:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const cancelOrder = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { orderId } = req.params;
+    const { reason } = req.body;
+    const result = await cancelOrderService(userId, orderId as string, reason);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Cancel order error:', error);
+    if (error.message === 'Order not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message === 'Order cannot be cancelled') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
 };

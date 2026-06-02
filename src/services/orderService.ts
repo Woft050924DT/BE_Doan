@@ -345,3 +345,57 @@ export const getOrders = async (userId: string, page: number = 1, limit: number 
     },
   };
 };
+
+export const getOrderById = async (userId: string, orderId: string) => {
+  const order = await prisma.orders.findFirst({
+    where: { order_id: orderId, user_id: userId },
+    include: {
+      order_items: true,
+      payments: true,
+    },
+  });
+
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  return order;
+};
+
+export const cancelOrder = async (userId: string, orderId: string, reason: string) => {
+  const order = await prisma.orders.findFirst({
+    where: { order_id: orderId, user_id: userId },
+  });
+
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  if (order.status !== 'pending' && order.status !== 'processing') {
+    throw new Error('Order cannot be cancelled');
+  }
+
+  const updatedOrder = await prisma.orders.update({
+    where: { order_id: orderId },
+    data: {
+      status: 'cancelled',
+      cancellation_reason: reason || 'Cancelled by user',
+      cancelled_at: new Date(),
+    },
+    include: {
+      order_items: true,
+      payments: true,
+    },
+  });
+
+  await prisma.order_status_history.create({
+    data: {
+      order_id: orderId,
+      status: 'cancelled',
+      notes: reason || 'Cancelled by user',
+      created_by: userId,
+    }
+  });
+
+  return updatedOrder;
+};
