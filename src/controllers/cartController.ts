@@ -5,7 +5,9 @@ import { AuthRequest } from '../middleware/auth';
 export const addToCart = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { product_id, variant_id, quantity } = req.body;
+    const product_id = req.body.product_id || req.body.productId;
+    const variant_id = req.body.variant_id || req.body.variantId;
+    const quantity = req.body.quantity ?? 1;
     const result = await addToCartService(userId, product_id, variant_id || null, quantity);
     res.json(result);
   } catch (error: any) {

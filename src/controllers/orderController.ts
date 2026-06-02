@@ -1,6 +1,22 @@
 import { Response } from 'express';
-import { placeOrder as placeOrderService, getOrders as getOrdersService } from '../services/orderService';
+import {
+  buyNow as buyNowService,
+  getCheckoutOptions,
+  getOrders as getOrdersService,
+  getPaymentMethods,
+  getShippingMethods,
+  placeOrder as placeOrderService,
+} from '../services/orderService';
 import { AuthRequest } from '../middleware/auth';
+
+const badRequestErrors = [
+  'Required fields are missing',
+  'Cart is empty',
+  'Order items are required',
+  'Product ID and quantity are required',
+];
+
+const notFoundErrors = ['Product not found', 'Variant not found'];
 
 export const placeOrder = async (req: AuthRequest, res: Response) => {
   try {
@@ -9,8 +25,28 @@ export const placeOrder = async (req: AuthRequest, res: Response) => {
     res.status(201).json(result);
   } catch (error: any) {
     console.error('Place order error:', error);
-    if (error.message === 'Required fields are missing' || error.message === 'Cart is empty') {
+    if (badRequestErrors.includes(error.message)) {
       return res.status(400).json({ error: error.message });
+    }
+    if (notFoundErrors.includes(error.message)) {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const buyNow = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const result = await buyNowService(userId, req.body);
+    res.status(201).json(result);
+  } catch (error: any) {
+    console.error('Buy now error:', error);
+    if (badRequestErrors.includes(error.message)) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (notFoundErrors.includes(error.message)) {
+      return res.status(404).json({ error: error.message });
     }
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -26,4 +62,16 @@ export const getOrders = async (req: AuthRequest, res: Response) => {
     console.error('Get orders error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+};
+
+export const checkoutOptions = (_req: AuthRequest, res: Response) => {
+  res.json(getCheckoutOptions());
+};
+
+export const shippingMethods = (_req: AuthRequest, res: Response) => {
+  res.json({ shipping_methods: getShippingMethods() });
+};
+
+export const paymentMethods = (_req: AuthRequest, res: Response) => {
+  res.json({ payment_methods: getPaymentMethods() });
 };

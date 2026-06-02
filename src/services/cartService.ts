@@ -1,7 +1,14 @@
 import prisma from '../config/database';
 
+const toPositiveInteger = (value: any, fallback?: number) => {
+  const parsed = Number(value ?? fallback);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
 export const addToCart = async (userId: string, product_id: string, variant_id: string | null, quantity: number) => {
-  if (!product_id || !quantity) {
+  const requestedQuantity = toPositiveInteger(quantity);
+
+  if (!product_id || requestedQuantity === null) {
     throw new Error('Product ID and quantity are required');
   }
 
@@ -49,7 +56,11 @@ export const addToCart = async (userId: string, product_id: string, variant_id: 
     // Update quantity
     await prisma.cart_items.update({
       where: { cart_item_id: existingItem.cart_item_id },
-      data: { quantity: existingItem.quantity + quantity },
+      data: {
+        quantity: existingItem.quantity + requestedQuantity,
+        price,
+        updated_at: new Date(),
+      },
     });
   } else {
     // Add new item
@@ -58,7 +69,7 @@ export const addToCart = async (userId: string, product_id: string, variant_id: 
         cart_id: cart.cart_id,
         product_id,
         variant_id,
-        quantity,
+        quantity: requestedQuantity,
         price,
       },
     });
