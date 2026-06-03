@@ -61,6 +61,7 @@ model ai_training_data {
   question          String
   answer            String
   keywords          String[]
+  intent           String?   @db.VarChar(100)
   context           Json?     @db.Json
   is_active         Boolean?  @default(true)
   usage_count       Int?      @default(0)
@@ -273,6 +274,7 @@ model coupons {
   created_at           DateTime?      @default(now()) @db.Timestamp(6)
   updated_at           DateTime?      @default(now()) @db.Timestamp(6)
   coupon_usage         coupon_usage[]
+  user_coupons         user_coupons[]
 }
 
 model inventory_transactions {
@@ -343,6 +345,7 @@ model messages {
   content         String?
   attachments     Json?           @db.Json
   metadata        Json?           @db.Json
+  intent          String?         @db.VarChar(100)
   is_read         Boolean?        @default(false)
   read_at         DateTime?       @db.Timestamp(6)
   created_at      DateTime?       @default(now()) @db.Timestamp(6)
@@ -547,6 +550,7 @@ model product_variants {
   inventory_transactions inventory_transactions[]
   order_items            order_items[]
   products               products?                @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction)
+  wishlist_items         wishlist_items[]
 
   @@index([product_id], map: "idx_product_variants_product")
 }
@@ -584,6 +588,7 @@ model products {
   product_variants       product_variants[]
   brands                 brands?                  @relation(fields: [brand_id], references: [brand_id], onDelete: NoAction, onUpdate: NoAction)
   categories             categories?              @relation(fields: [category_id], references: [category_id], onDelete: NoAction, onUpdate: NoAction)
+  wishlist_items         wishlist_items[]
 
   @@index([brand_id], map: "idx_products_brand")
   @@index([category_id], map: "idx_products_category")
@@ -627,6 +632,40 @@ model user_addresses {
   users         users?    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
 }
 
+model user_coupons {
+  user_coupon_id String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id        String    @db.Uuid
+  coupon_id      String    @db.Uuid
+  assigned_at    DateTime? @default(now()) @db.Timestamp(6)
+  coupons        coupons   @relation(fields: [coupon_id], references: [coupon_id], onDelete: Cascade, onUpdate: NoAction)
+  users          users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, coupon_id])
+}
+
+model wishlists {
+  wishlist_id   String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id       String          @db.Uuid
+  created_at    DateTime?       @default(now()) @db.Timestamp(6)
+  wishlist_items wishlist_items[]
+  users         users           @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id])
+}
+
+model wishlist_items {
+  wishlist_item_id String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  wishlist_id     String     @db.Uuid
+  product_id     String     @db.Uuid
+  variant_id      String?    @db.Uuid
+  created_at      DateTime?  @default(now()) @db.Timestamp(6)
+  products        products   @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction)
+  product_variants product_variants? @relation(fields: [variant_id], references: [variant_id], onDelete: Cascade, onUpdate: NoAction)
+  wishlists       wishlists  @relation(fields: [wishlist_id], references: [wishlist_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([wishlist_id, product_id, variant_id])
+}
+
 model users {
   user_id                                        String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   email                                          String                   @unique @db.VarChar(255)
@@ -659,6 +698,8 @@ model users {
   product_reviews                                product_reviews[]
   settings                                       settings[]
   user_addresses                                 user_addresses[]
+  user_coupons                                   user_coupons[]
+  wishlists                                      wishlists[]
 
   @@index([email], map: "idx_users_email")
   @@index([role], map: "idx_users_role")

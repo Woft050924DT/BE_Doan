@@ -11,6 +11,7 @@ import {
   updateAddress,
   updateProfile,
 } from '../controllers/profileController';
+import { getProfileStats, changePassword } from '../controllers/profileStatsController';
 
 const router = Router();
 
@@ -22,6 +23,9 @@ router.get('/', getProfile);
 router.put('/', updateProfile);
 router.patch('/', updateProfile);
 router.delete('/', deleteProfile);
+
+router.get('/stats', getProfileStats);
+router.patch('/password', changePassword);
 
 router.get('/addresses', getAddresses);
 router.post('/addresses', createAddress);

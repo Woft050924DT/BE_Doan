@@ -7,11 +7,21 @@ import cartRoutes from './routes/cartRoutes';
 import orderRoutes from './routes/orderRoutes';
 import profileRoutes from './routes/profileRoutes';
 import categoryRoutes from './routes/categoryRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import wishlistRoutes from './routes/wishlistRoutes';
+import couponRoutes from './routes/couponRoutes';
+import chatRoutes from './routes/chatRoutes';
+import adminDashboardRoutes from './routes/adminDashboardRoutes';
+import adminOrderRoutes from './routes/adminOrderRoutes';
+import adminProductRoutes from './routes/adminProductRoutes';
+import adminAIRoutes from './routes/adminAIRoutes';
+import adminChatRoutes from './routes/adminChatRoutes';
+import supportRoutes from './routes/supportRoutes';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -25,6 +35,12 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminDashboardRoutes, adminOrderRoutes, adminProductRoutes, adminAIRoutes, adminChatRoutes);
+app.use('/api', supportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
