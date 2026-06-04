@@ -10,6 +10,9 @@ import {
   getAIMetrics as getAIMetricsService,
 } from '../services/adminAIService';
 
+const isValidUUID = (id: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 export const getAITrainingData = async (req: AuthRequest, res: Response) => {
   try {
     const result = await getAITrainingDataService(req.query);
@@ -32,8 +35,9 @@ export const createQARecord = async (req: AuthRequest, res: Response) => {
 
 export const updateQARecord = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const result = await updateQARecordService(id as string, req.body);
+    const id = req.params.id as string;
+    if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
+    const result = await updateQARecordService(id, req.body);
     res.json(result);
   } catch (error: any) {
     console.error('Update QA record error:', error);
@@ -43,8 +47,9 @@ export const updateQARecord = async (req: AuthRequest, res: Response) => {
 
 export const deleteQARecord = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const result = await deleteQARecordService(id as string);
+    const id = req.params.id as string;
+    if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid ID format' });
+    const result = await deleteQARecordService(id);
     res.json(result);
   } catch (error: any) {
     console.error('Delete QA record error:', error);

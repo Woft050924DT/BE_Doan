@@ -16,6 +16,22 @@ import adminOrderRoutes from './routes/adminOrderRoutes';
 import adminProductRoutes from './routes/adminProductRoutes';
 import adminAIRoutes from './routes/adminAIRoutes';
 import adminChatRoutes from './routes/adminChatRoutes';
+import adminReviewRoutes from './routes/adminReviewRoutes';
+import adminCouponRoutes from './routes/adminCouponRoutes';
+import adminCustomerRoutes from './routes/adminCustomerRoutes';
+import adminBannerRoutes from './routes/adminBannerRoutes';
+import adminBrandRoutes from './routes/adminBrandRoutes';
+import adminCategoryRoutes from './routes/adminCategoryRoutes';
+import adminPostRoutes from './routes/adminPostRoutes';
+import adminLibraryRoutes from './routes/adminLibraryRoutes';
+import adminTrainingDataRoutes from './routes/adminTrainingDataRoutes';
+import adminQuickReplyRoutes from './routes/adminQuickReplyRoutes';
+import adminStaffRoutes from './routes/adminStaffRoutes';
+import adminSettingsRoutes from './routes/adminSettingsRoutes';
+import adminPaymentRoutes from './routes/adminPaymentRoutes';
+import adminPaymentMethodRoutes from './routes/adminPaymentMethodRoutes';
+import adminShippingMethodRoutes from './routes/adminShippingMethodRoutes';
+import adminAILogRoutes from './routes/adminAILogRoutes';
 import supportRoutes from './routes/supportRoutes';
 
 dotenv.config();
@@ -24,7 +40,12 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -39,7 +60,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/admin', adminDashboardRoutes, adminOrderRoutes, adminProductRoutes, adminAIRoutes, adminChatRoutes);
+app.use('/api/admin', adminDashboardRoutes, adminOrderRoutes, adminProductRoutes, adminAIRoutes, adminChatRoutes, adminCategoryRoutes, adminPostRoutes, adminBannerRoutes, adminBrandRoutes, adminLibraryRoutes, adminPaymentMethodRoutes, adminShippingMethodRoutes, adminAILogRoutes, adminReviewRoutes, adminCouponRoutes, adminCustomerRoutes, adminTrainingDataRoutes, adminQuickReplyRoutes, adminStaffRoutes, adminSettingsRoutes, adminPaymentRoutes);
 app.use('/api', supportRoutes);
 
 // Health check

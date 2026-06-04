@@ -1395,6 +1395,332 @@ Response 200:
 
 ---
 
+## ADMIN - Quản lý Reviews
+
+### 15.1. Danh sách reviews
+```
+GET /api/admin/reviews
+Authorization: Bearer <token> (role: admin | staff)
+
+Query:
+  page     number
+  limit    number
+  search   string   (tìm theo title, comment)
+  approved boolean  (true = đã duyệt, false = chờ duyệt, undefined = tất cả)
+
+Response 200:
+{
+  "data": [
+    {
+      "review_id": "uuid",
+      "product_name": "iPhone 15 Pro Max",
+      "product_image": "https://...",
+      "user_name": "Nguyễn Văn A",
+      "user_avatar": "https://...",
+      "rating": 5,
+      "title": "Sản phẩm tuyệt vời",
+      "comment": "Rất hài lòng với sản phẩm...",
+      "is_verified_purchase": true,
+      "is_approved": false,
+      "helpful_count": 12,
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 50, "totalPages": 3 }
+}
+```
+
+### 15.2. Duyệt review
+```
+PATCH /api/admin/reviews/:id/approve
+Authorization: Bearer <token> (role: admin | staff)
+
+Response 200: (updated review)
+```
+
+### 15.3. Từ chối review
+```
+PATCH /api/admin/reviews/:id/reject
+Authorization: Bearer <token> (role: admin | staff)
+
+Response 200: (updated review)
+```
+
+### 15.4. Xóa review
+```
+DELETE /api/admin/reviews/:id
+Authorization: Bearer <token> (role: admin | staff)
+
+Response 200: { "message": "Review deleted successfully" }
+```
+
+---
+
+## ADMIN - Quản lý Khuyến mãi
+
+### 16.1. Danh sách coupon
+```
+GET /api/admin/coupons
+Authorization: Bearer <token> (role: admin)
+
+Query:
+  page       number
+  limit      number
+  search     string   (tìm theo code, description)
+  status     string   (active | scheduled | expired | disabled)
+  is_active  boolean
+
+Response 200:
+{
+  "data": [
+    {
+      "coupon_id": "uuid",
+      "code": "SUMMER2024",
+      "title": "Khuyến mãi mùa hè",
+      "discount_type": "percentage",
+      "discount_value": 10,
+      "min_order_amount": 500000,
+      "max_discount": 500000,
+      "usage_limit": 1000,
+      "used_count": 250,
+      "start_date": "2024-06-01T00:00:00Z",
+      "end_date": "2024-08-31T23:59:59Z",
+      "status": "active",
+      "is_featured": false
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 15, "totalPages": 1 }
+}
+```
+
+### 16.2. Tạo coupon
+```
+POST /api/admin/coupons
+Authorization: Bearer <token> (role: admin)
+Content-Type: application/json
+
+Body:
+{
+  "code": "SUMMER2024",
+  "title": "Khuyến mãi mùa hè",
+  "discountType": "percentage",
+  "discountValue": 10,
+  "minOrder": 500000,
+  "maxDiscount": 500000,
+  "usageLimit": 1000,
+  "usageLimitPerUser": 1,
+  "startDate": "2024-06-01T00:00:00Z",
+  "endDate": "2024-08-31T23:59:59Z"
+}
+
+Response 201: (created coupon)
+Error 409: { "error": "Mã giảm giá đã tồn tại" }
+```
+
+### 16.3. Cập nhật coupon
+```
+PUT /api/admin/coupons/:id
+Authorization: Bearer <token> (role: admin)
+Content-Type: application/json
+
+Body: (giống create - các field muốn update)
+
+Response 200: (updated coupon)
+Error 404: { "error": "Coupon not found" }
+```
+
+### 16.4. Xóa coupon
+```
+DELETE /api/admin/coupons/:id
+Authorization: Bearer <token> (role: admin)
+
+Response 200: { "message": "Coupon deleted successfully" }
+Error 404: { "error": "Coupon not found" }
+```
+
+### 16.5. Toggle trạng thái coupon
+```
+PATCH /api/admin/coupons/:id/toggle
+Authorization: Bearer <token> (role: admin)
+
+Response 200: (updated coupon)
+Error 404: { "error": "Coupon not found" }
+```
+
+---
+
+## ADMIN - Quản lý Khách hàng
+
+### 17.1. Danh sách khách hàng
+```
+GET /api/admin/customers
+Authorization: Bearer <token> (role: admin)
+
+Query:
+  page       number
+  limit      number
+  search     string   (tìm theo full_name, email, phone)
+  status     string   (active | banned)
+  is_active  boolean
+  role       string   (customer | staff | admin)
+
+Response 200:
+{
+  "data": [
+    {
+      "user_id": "uuid",
+      "full_name": "Nguyễn Văn A",
+      "email": "user@example.com",
+      "phone": "0901234567",
+      "avatar_url": "https://...",
+      "role": "customer",
+      "total_orders": 12,
+      "total_spent": 125000000,
+      "last_order_at": "2024-01-15T10:00:00Z",
+      "total_reviews": 5,
+      "email_verified": true,
+      "last_login": "2024-01-15T09:00:00Z",
+      "joined_at": "2024-01-01T00:00:00Z",
+      "status": "active"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 150, "totalPages": 8 }
+}
+```
+
+### 17.2. Chi tiết khách hàng
+```
+GET /api/admin/customers/:id
+Authorization: Bearer <token> (role: admin)
+
+Response 200:
+{
+  "user_id": "uuid",
+  "full_name": "Nguyễn Văn A",
+  "email": "user@example.com",
+  "phone": "0901234567",
+  "avatar_url": "https://...",
+  "role": "customer",
+  "email_verified": true,
+  "last_login": "2024-01-15T09:00:00Z",
+  "joined_at": "2024-01-01T00:00:00Z",
+  "status": "active",
+  "orders": [
+    { "order_id": "uuid", "order_number": "ORD-...", "total_amount": 5000000, "status": "delivered", "created_at": "..." }
+  ],
+  "reviews": [
+    { "review_id": "uuid", "product_name": "iPhone 15", "rating": 5, "comment": "...", "created_at": "..." }
+  ],
+  "addresses": [{ "address_id": "uuid", "full_name": "...", "phone": "...", "address_line1": "...", "city": "...", "district": "...", "is_default": true }]
+}
+Error 404: { "error": "User not found" }
+```
+
+### 17.3. Cập nhật trạng thái khách hàng (ban/unban)
+```
+PATCH /api/admin/customers/:id
+Authorization: Bearer <token> (role: admin)
+Content-Type: application/json
+
+Body: { "status": "banned" | "active" }
+
+Response 200: { "user_id": "uuid", "full_name": "...", "email": "...", "status": "banned" }
+Error 404: { "error": "User not found" }
+```
+
+---
+
+## ADMIN - Quản lý Banner
+
+### 18.1. Danh sách banner
+```
+GET /api/admin/banners
+Authorization: Bearer <token> (role: admin)
+
+Query:
+  page      number
+  limit     number
+  search    string   (tìm theo title)
+  status    string   (active | inactive | scheduled | expired)
+  position  string
+
+Response 200:
+{
+  "data": [
+    {
+      "banner_id": "uuid",
+      "title": "Flash Sale Mùa Hè",
+      "image_url": "https://...",
+      "mobile_image_url": "https://...",
+      "link": "https://...",
+      "position": "main",
+      "device": "all",
+      "status": "active",
+      "start_date": "2024-06-01T00:00:00Z",
+      "end_date": "2024-08-31T23:59:59Z",
+      "sort_order": 1,
+      "click_count": 1250,
+      "is_active": true
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 10, "totalPages": 1 }
+}
+```
+
+### 18.2. Tạo banner
+```
+POST /api/admin/banners
+Authorization: Bearer <token> (role: admin)
+Content-Type: application/json
+
+Body:
+{
+  "title": "Flash Sale Mùa Hè",
+  "image_url": "https://cdn.example.com/banner.jpg",
+  "mobile_image_url": "https://cdn.example.com/banner-mobile.jpg",
+  "link": "https://example.com/flash-sale",
+  "position": "main",
+  "device": "all",
+  "start_date": "2024-06-01T00:00:00Z",
+  "end_date": "2024-08-31T23:59:59Z",
+  "sort_order": 1
+}
+
+Response 201: (created banner)
+```
+
+### 18.3. Cập nhật banner
+```
+PUT /api/admin/banners/:id
+Authorization: Bearer <token> (role: admin)
+Content-Type: application/json
+
+Body: (giống create - các field muốn update)
+
+Response 200: (updated banner)
+Error 404: { "error": "Banner not found" }
+```
+
+### 18.4. Xóa banner
+```
+DELETE /api/admin/banners/:id
+Authorization: Bearer <token> (role: admin)
+
+Response 200: { "message": "Banner deleted successfully" }
+Error 404: { "error": "Banner not found" }
+```
+
+### 18.5. Toggle trạng thái banner
+```
+PATCH /api/admin/banners/:id/toggle
+Authorization: Bearer <token> (role: admin)
+
+Response 200: (updated banner)
+Error 404: { "error": "Banner not found" }
+```
+
+---
+
 ## Error Response Format
 ```json
 {
