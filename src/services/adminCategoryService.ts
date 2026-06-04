@@ -16,7 +16,7 @@ const categorySelect = {
   created_at: true,
   updated_at: true,
   _count: { select: { products: true } },
-  categories: { select: { name: true }, take: 1 },
+  categories: { select: { name: true } },
 } as const;
 
 export const getAdminCategories = async (filters: {
