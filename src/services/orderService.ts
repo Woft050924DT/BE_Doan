@@ -1,4 +1,8 @@
 import prisma from '../config/database';
+import { assertSufficientStock, resolveVariantId } from '../utils/stock';
+import { deductStockForOrder, restoreStockForOrder } from '../utils/orderStock';
+
+const ORDER_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
 
 export const placeOrder = async (userId: string, orderData: any) => {
   const {
@@ -46,16 +50,23 @@ export const placeOrder = async (userId: string, orderData: any) => {
     throw new Error('Cart is empty');
   }
 
+  for (const item of cart.cart_items) {
+    if (!item.product_id) continue;
+    await assertSufficientStock(item.product_id, item.variant_id, item.quantity);
+  }
+
   // Calculate totals
   let subtotal = 0;
-  const orderItemsData = cart.cart_items.map((item: any) => {
+  const orderItemsData = await Promise.all(
+    cart.cart_items.map(async (item: any) => {
+    const resolvedVariantId = await resolveVariantId(item.product_id, item.variant_id);
     const productPrice = item.product_variants?.price || item.products.price;
     const totalPrice = Number(productPrice) * item.quantity;
     subtotal += totalPrice;
 
     return {
       product_id: item.product_id,
-      variant_id: item.variant_id,
+      variant_id: resolvedVariantId,
       product_name: item.products.name,
       variant_name: item.product_variants?.name,
       sku: item.product_variants?.sku || item.products.sku,
@@ -63,7 +74,8 @@ export const placeOrder = async (userId: string, orderData: any) => {
       unit_price: productPrice,
       total_price: totalPrice,
     };
-  });
+    })
+  );
 
   // Calculate shipping fee (simplified logic)
   const shipping_fee = 30000; // Fixed shipping fee
@@ -153,29 +165,7 @@ export const placeOrder = async (userId: string, orderData: any) => {
     });
   }
 
-  // Update inventory
-  for (const item of cart.cart_items) {
-    const quantityChange = -item.quantity;
-    
-    if (item.variant_id) {
-      await prisma.product_variants.update({
-        where: { variant_id: item.variant_id },
-        data: { stock_quantity: { increment: quantityChange } },
-      });
-    }
-
-    await prisma.inventory_transactions.create({
-      data: {
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        transaction_type: 'sale',
-        quantity: item.quantity,
-        reference_id: order.order_id,
-        notes: `Order ${order.order_number}`,
-        created_by: userId,
-      },
-    });
-  }
+  // Kho trừ khi admin chuyển trạng thái sang "delivered"
 
   // Clear cart
   await prisma.cart_items.deleteMany({
@@ -185,13 +175,27 @@ export const placeOrder = async (userId: string, orderData: any) => {
   return order;
 };
 
-export const getOrders = async (userId: string, page: number = 1, limit: number = 10) => {
+export const getOrderById = async (userId: string, orderId: string, admin = false) => {
+  const order = await prisma.orders.findFirst({
+    where: admin ? { order_id: orderId } : { order_id: orderId, user_id: userId },
+    include: { order_items: true },
+  });
+
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  return order;
+};
+
+export const getOrders = async (userId: string, page: number = 1, limit: number = 10, admin = false) => {
   const skip = (page - 1) * limit;
   const take = limit;
+  const where = admin ? {} : { user_id: userId };
 
   const [orders, total] = await Promise.all([
     prisma.orders.findMany({
-      where: { user_id: userId },
+      where,
       skip,
       take,
       include: {
@@ -199,7 +203,7 @@ export const getOrders = async (userId: string, page: number = 1, limit: number 
       },
       orderBy: { created_at: 'desc' },
     }),
-    prisma.orders.count({ where: { user_id: userId } }),
+    prisma.orders.count({ where }),
   ]);
 
   return {
@@ -211,4 +215,83 @@ export const getOrders = async (userId: string, page: number = 1, limit: number 
       totalPages: Math.ceil(total / limit),
     },
   };
+};
+
+export const updateOrder = async (
+  userId: string,
+  orderId: string,
+  data: {
+    status?: string;
+    notes?: string;
+    internal_notes?: string;
+    tracking_number?: string;
+    cancellation_reason?: string;
+    status_note?: string;
+  },
+  admin = false
+) => {
+  if (!admin) {
+    throw new Error('Admin access required');
+  }
+
+  const order = await prisma.orders.findFirst({
+    where: { order_id: orderId },
+    include: { order_items: true },
+  });
+
+  if (!order) {
+    throw new Error('Order not found');
+  }
+
+  const oldStatus = order.status || 'pending';
+  const newStatus = data.status ?? oldStatus;
+
+  if (data.status && !ORDER_STATUSES.includes(data.status as (typeof ORDER_STATUSES)[number])) {
+    throw new Error('Invalid order status');
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const updatedOrder = await tx.orders.update({
+      where: { order_id: orderId },
+      data: {
+        ...(data.status ? { status: data.status, shipping_status: data.status } : {}),
+        ...(data.notes !== undefined ? { notes: data.notes } : {}),
+        ...(data.internal_notes !== undefined ? { internal_notes: data.internal_notes } : {}),
+        ...(data.tracking_number !== undefined ? { tracking_number: data.tracking_number } : {}),
+        ...(newStatus === 'shipped' && !order.shipped_at ? { shipped_at: new Date() } : {}),
+        ...(newStatus === 'delivered' && !order.delivered_at ? { delivered_at: new Date() } : {}),
+        ...(newStatus === 'cancelled'
+          ? {
+              cancelled_at: order.cancelled_at || new Date(),
+              cancellation_reason: data.cancellation_reason || order.cancellation_reason,
+            }
+          : {}),
+        updated_at: new Date(),
+      },
+      include: { order_items: true },
+    });
+
+    if (newStatus !== oldStatus) {
+      await tx.order_status_history.create({
+        data: {
+          order_id: orderId,
+          status: newStatus,
+          notes: data.status_note || `Cập nhật: ${oldStatus} → ${newStatus}`,
+          created_by: userId,
+        },
+      });
+    }
+
+    if (newStatus === 'delivered') {
+      await deductStockForOrder(tx, orderId, userId, order.order_items);
+    }
+
+    if (newStatus === 'cancelled' && oldStatus === 'delivered') {
+      await restoreStockForOrder(tx, orderId, userId);
+    }
+
+    return updatedOrder;
+  });
+
+  return updated;
 };

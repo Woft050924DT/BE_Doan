@@ -1,13 +1,17 @@
-import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaClient } from '../generated/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 
-// Set DATABASE_URL if not in environment
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgres://postgres:dt2711@localhost:5432/ShopAI';
+  throw new Error(
+    'DATABASE_URL is missing. Copy .env.example to .env and set your PostgreSQL connection string.'
+  );
 }
 
-const adapter = new PrismaPg(new pg.Pool({ connectionString: process.env.DATABASE_URL }));
+const adapter = new PrismaPg(
+  new pg.Pool({ connectionString: process.env.DATABASE_URL })
+);
 const prisma = new PrismaClient({ adapter });
 
 export default prisma;

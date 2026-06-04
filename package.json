@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed": "ts-node prisma/seed.ts",
+    "reset-admin": "ts-node prisma/reset-admin.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "prisma": {

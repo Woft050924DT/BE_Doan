@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const catalogController_1 = require("../controllers/catalogController");
+const router = (0, express_1.Router)();
+router.get('/categories', catalogController_1.getCategories);
+router.post('/categories', auth_1.authenticate, auth_1.requireAdmin, catalogController_1.createCategory);
+router.put('/categories/:id', auth_1.authenticate, auth_1.requireAdmin, catalogController_1.updateCategory);
+router.delete('/categories/:id', auth_1.authenticate, auth_1.requireAdmin, catalogController_1.deleteCategory);
+router.get('/brands', catalogController_1.getBrands);
+router.post('/brands', auth_1.authenticate, auth_1.requireAdmin, catalogController_1.createBrand);
+router.put('/brands/:id', auth_1.authenticate, auth_1.requireAdmin, catalogController_1.updateBrand);
+router.delete('/brands/:id', auth_1.authenticate, auth_1.requireAdmin, catalogController_1.deleteBrand);
+router.get('/banners', catalogController_1.getBanners);
+router.get('/menus', catalogController_1.getMenus);
+exports.default = router;

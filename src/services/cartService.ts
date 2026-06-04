@@ -1,4 +1,21 @@
 import prisma from '../config/database';
+import { assertSufficientStock, resolveVariantId } from '../utils/stock';
+
+const cartInclude = {
+  cart_items: {
+    include: {
+      products: {
+        include: {
+          product_images: {
+            where: { is_primary: true as any },
+            take: 1,
+          },
+        },
+      },
+      product_variants: true,
+    },
+  },
+};
 
 export const addToCart = async (userId: string, product_id: string, variant_id: string | null, quantity: number) => {
   if (!product_id || !quantity) {
@@ -11,14 +28,17 @@ export const addToCart = async (userId: string, product_id: string, variant_id: 
     include: { product_variants: true },
   });
 
-  if (!product) {
+  if (!product || product.status !== 'published') {
     throw new Error('Product not found');
   }
 
+  const resolvedVariantId = await resolveVariantId(product_id, variant_id);
+  await assertSufficientStock(product_id, resolvedVariantId, quantity);
+
   // Determine price
   let price = product.price;
-  if (variant_id) {
-    const variant = product.product_variants.find((v: any) => v.variant_id === variant_id);
+  if (resolvedVariantId) {
+    const variant = product.product_variants.find((v: any) => v.variant_id === resolvedVariantId);
     if (!variant) {
       throw new Error('Variant not found');
     }
@@ -41,15 +61,17 @@ export const addToCart = async (userId: string, product_id: string, variant_id: 
     where: {
       cart_id: cart.cart_id,
       product_id,
-      variant_id: variant_id || null,
+      variant_id: resolvedVariantId || null,
     },
   });
 
   if (existingItem) {
-    // Update quantity
+    const newQuantity = existingItem.quantity + quantity;
+    await assertSufficientStock(product_id, resolvedVariantId, newQuantity);
+
     await prisma.cart_items.update({
       where: { cart_item_id: existingItem.cart_item_id },
-      data: { quantity: existingItem.quantity + quantity },
+      data: { quantity: newQuantity, price, updated_at: new Date() },
     });
   } else {
     // Add new item
@@ -57,7 +79,7 @@ export const addToCart = async (userId: string, product_id: string, variant_id: 
       data: {
         cart_id: cart.cart_id,
         product_id,
-        variant_id,
+        variant_id: resolvedVariantId,
         quantity,
         price,
       },
@@ -71,46 +93,92 @@ export const addToCart = async (userId: string, product_id: string, variant_id: 
   });
 
   // Get updated cart
-  const updatedCart = await prisma.carts.findUnique({
-    where: { cart_id: cart.cart_id },
-    include: {
-      cart_items: {
-        include: {
-          products: {
-            include: {
-              product_images: {
-                where: { is_primary: true as any },
-                take: 1,
-              },
-            },
-          },
-          product_variants: true,
+  return prisma.cart_items.findUnique({
+  where: { cart_item_id: cart.cart_id },
+  include: {
+    products: {
+      include: {
+        product_images: {
+          where: { is_primary: true as any },
+          take: 1,
         },
       },
     },
+    product_variants: true,
+  },
+});
+};
+
+export const updateCartItem = async (userId: string, cartItemId: string, quantity: number) => {
+  if (!quantity || quantity < 1) {
+    throw new Error('Quantity must be at least 1');
+  }
+
+  const cart = await prisma.carts.findFirst({ where: { user_id: userId } });
+  if (!cart) {
+    throw new Error('Cart item not found');
+  }
+
+  const item = await prisma.cart_items.findFirst({
+    where: { cart_item_id: cartItemId, cart_id: cart.cart_id },
+    include: { products: true, product_variants: true },
   });
 
-  return updatedCart;
+  if (!item || !item.product_id) {
+    throw new Error('Cart item not found');
+  }
+
+  await assertSufficientStock(item.product_id, item.variant_id, quantity);
+
+  const price =
+    item.product_variants?.price || item.products?.price || item.price;
+
+  await prisma.cart_items.update({
+    where: { cart_item_id: cartItemId },
+    data: { quantity, price, updated_at: new Date() },
+  });
+
+  await prisma.carts.update({
+    where: { cart_id: cart.cart_id },
+    data: { updated_at: new Date() },
+  });
+
+  return prisma.carts.findUnique({
+    where: { cart_id: cart.cart_id },
+    include: cartInclude,
+  });
+};
+
+export const removeCartItem = async (userId: string, cartItemId: string) => {
+  const cart = await prisma.carts.findFirst({ where: { user_id: userId } });
+  if (!cart) {
+    throw new Error('Cart item not found');
+  }
+
+  const item = await prisma.cart_items.findFirst({
+    where: { cart_item_id: cartItemId, cart_id: cart.cart_id },
+  });
+
+  if (!item) {
+    throw new Error('Cart item not found');
+  }
+
+  await prisma.cart_items.delete({ where: { cart_item_id: cartItemId } });
+  await prisma.carts.update({
+    where: { cart_id: cart.cart_id },
+    data: { updated_at: new Date() },
+  });
+
+  return prisma.carts.findUnique({
+    where: { cart_id: cart.cart_id },
+    include: cartInclude,
+  });
 };
 
 export const getCart = async (userId: string) => {
   const cart = await prisma.carts.findFirst({
     where: { user_id: userId },
-    include: {
-      cart_items: {
-        include: {
-          products: {
-            include: {
-              product_images: {
-                where: { is_primary: true as any },
-                take: 1,
-              },
-            },
-          },
-          product_variants: true,
-        },
-      },
-    },
+    include: cartInclude,
   });
 
   if (!cart) {
