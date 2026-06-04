@@ -10,7 +10,6 @@ const productSelect = {
   featured: true,
   best_seller: true,
   new_arrival: true,
-  stock_quantity: true,
   view_count: true,
   created_at: true,
   updated_at: true,
